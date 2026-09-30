@@ -22,7 +22,10 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
-
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import java.util.Arrays;
 import java.util.UUID;
 
 @Configuration
@@ -48,7 +51,7 @@ public class SecurityConfig {
         var matcher = new OrRequestMatcher(
                 configurer.getEndpointsMatcher(), loginRouter
         );
-        return httpSecurity.securityMatcher(matcher)
+        return httpSecurity.cors(Customizer.withDefaults()).securityMatcher(matcher)
                 .authorizeHttpRequests(auth ->
                 auth.anyRequest().authenticated()
             ).formLogin(Customizer.withDefaults()).build();
@@ -57,7 +60,8 @@ public class SecurityConfig {
     @Bean
     @Order(2)
     public SecurityFilterChain securityFilterChainRS (HttpSecurity httpSecurity) {
-        return httpSecurity.authorizeHttpRequests(auth -> auth
+        return httpSecurity.cors(Customizer.withDefaults())
+                .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/user/save").permitAll()
                 .requestMatchers("/error").permitAll()
                 .requestMatchers(
@@ -83,11 +87,24 @@ public class SecurityConfig {
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
                 .tokenSettings(TokenSettings.builder().reuseRefreshTokens(false).build())
-                .redirectUri("http://localhost:4200/")
+                .redirectUri("http://localhost:4200/callback")
                 .scope("products:read")
                 .scope("products:write")
                 .clientSettings(ClientSettings.builder().requireProofKey(true).build()).build();
 
         return new InMemoryRegisteredClientRepository(client);
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        var corsConfig = new CorsConfiguration();
+        corsConfig.addAllowedOrigin("http://localhost:4200");
+        corsConfig.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE"));
+        corsConfig.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
+        corsConfig.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", corsConfig);
+        return source;
     }
 }

@@ -1,6 +1,6 @@
 package com.catalog.manager.api.config;
 
-
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -25,6 +25,8 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.UUID;
 
@@ -62,35 +64,49 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChainRS (HttpSecurity httpSecurity) {
         return httpSecurity.cors(Customizer.withDefaults())
                 .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/user/save").permitAll()
-                .requestMatchers("/error").permitAll()
-                .requestMatchers(
-                        "/v3/api-docs/**",
-                        "/swagger-ui/**",
-                        "/swagger-ui.html"
+                        .requestMatchers("/user/save").permitAll()
+                        .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers("/error").permitAll()
+                        .requestMatchers(
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
                         ).permitAll()
-                .anyRequest().authenticated()
-        ).oauth2ResourceServer(oauth2 ->
-                oauth2.jwt(Customizer.withDefaults())
-        ).sessionManagement(session ->
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-        ).csrf(
-                csrf -> csrf.disable()
-        ).build();
+                        .anyRequest().authenticated()
+                ).oauth2ResourceServer(oauth2 ->
+                        oauth2.jwt(Customizer.withDefaults())
+                ).sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                ).csrf(
+                        csrf -> csrf.disable()
+                ).build();
     }
 
     @Bean
-    public RegisteredClientRepository registeredClientRepository() {
+    public RegisteredClientRepository registeredClientRepository(
+            PasswordEncoder passwordEncoder,
+            @Value("${app.auth.client-id}") String clientId,
+            @Value("${app.auth.client-secret}") String clientSecret,
+            @Value("${app.auth.redirect-uri}") String redirectUri,
+            @Value("${app.auth.refresh-token-days}") long refreshTokenDays
+
+    ) {
         RegisteredClient client = RegisteredClient.withId(UUID.randomUUID().toString())
-                .clientId("angular-catalog-manager")
-                .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
+                .clientId(clientId)
+                .clientSecret(passwordEncoder.encode(clientSecret))
+                .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-                .tokenSettings(TokenSettings.builder().reuseRefreshTokens(false).build())
-                .redirectUri("http://localhost:4200/callback")
+                .tokenSettings(TokenSettings.builder()
+                        .accessTokenTimeToLive(Duration.ofMinutes(5))
+                        .refreshTokenTimeToLive(Duration.ofDays(refreshTokenDays))
+                        .reuseRefreshTokens(false)
+                        .build())
+                .redirectUri(redirectUri)
                 .scope("products:read")
                 .scope("products:write")
-                .clientSettings(ClientSettings.builder().requireProofKey(true).build()).build();
+                .clientSettings(ClientSettings.builder().requireProofKey(true).build())
+                .build();
 
         return new InMemoryRegisteredClientRepository(client);
     }
@@ -100,7 +116,8 @@ public class SecurityConfig {
         var corsConfig = new CorsConfiguration();
         corsConfig.addAllowedOrigin("http://localhost:4200");
         corsConfig.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE"));
-        corsConfig.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
+        corsConfig.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));
+        corsConfig.setAllowCredentials(true);
         corsConfig.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

@@ -1,4 +1,4 @@
-package com.catalog.manager.api.dto.response;
+package com.catalog.manager.api.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 

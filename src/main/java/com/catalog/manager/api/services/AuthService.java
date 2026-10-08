@@ -1,8 +1,6 @@
 package com.catalog.manager.api.services;
 
 import com.catalog.manager.api.dto.response.TokenResponse;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -10,8 +8,6 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 
-@AllArgsConstructor
-@Builder
 @Service
 public class AuthService {
     private final RestClient restClient;
@@ -20,7 +16,7 @@ public class AuthService {
     private final String redirectUri;
 
     public AuthService(
-            @Value("${app.auth.serve-url}")
+            @Value("${app.auth.server-url}")
             String serverUrl,
             @Value("${app.auth.client-id}")
             String clientId,
